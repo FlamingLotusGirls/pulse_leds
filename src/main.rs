@@ -48,6 +48,7 @@ fn main() {
                         &ArtCommand::Output(Output {
                             data: strip
                                 .iter()
+                                .take(170)
                                 .flat_map(|pixel| {
                                     pixel
                                         .rgb
@@ -82,11 +83,36 @@ impl Rib {
         Rib {
             address,
             strips: vec![
-                vec![Pixel::default(); 600], // Bronchi 1
-                vec![Pixel::default(); 600], // Bronchi 2
-                vec![Pixel::default(); 600], // Bronchi 3
-                vec![Pixel::default(); 300], // Bone 1
-                vec![Pixel::default(); 300], // Bone 2
+                vec![
+                    Pixel {
+                        rgb: [0.5, 0.1, 0.1]
+                    };
+                    600
+                ], // Bronchi 1
+                vec![
+                    Pixel {
+                        rgb: [0.5, 0.1, 0.1]
+                    };
+                    600
+                ], // Bronchi 2
+                vec![
+                    Pixel {
+                        rgb: [0.5, 0.1, 0.1]
+                    };
+                    600
+                ], // Bronchi 3
+                vec![
+                    Pixel {
+                        rgb: [0.5, 0.1, 0.1]
+                    };
+                    300
+                ], // Bone 1
+                vec![
+                    Pixel {
+                        rgb: [0.5, 0.1, 0.1]
+                    };
+                    300
+                ], // Bone 2
             ],
         }
     }
