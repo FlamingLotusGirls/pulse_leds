@@ -1,33 +1,30 @@
 use artnet_protocol::{ArtCommand, Output};
 use fps_clock::*;
-use std::{
-    io::Write,
-    net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket},
-};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
 
 const ARTNET_PORT: u16 = 6454;
 
 fn main() {
     let mut fps_clock = FpsClock::new(60);
 
-    let mut rib_1 = Rib::new(SocketAddr::new(
+    let rib_1 = Rib::new(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(169, 254, 5, 51)),
         ARTNET_PORT,
     ));
-    let mut rib_2 = Rib::new(SocketAddr::new(
+    let rib_2 = Rib::new(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(169, 254, 5, 52)),
         ARTNET_PORT,
     ));
-    let mut rib_3 = Rib::new(SocketAddr::new(
+    let rib_3 = Rib::new(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(169, 254, 5, 53)),
         ARTNET_PORT,
     ));
-    let mut rib_4 = Rib::new(SocketAddr::new(
+    let rib_4 = Rib::new(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(169, 254, 5, 54)),
         ARTNET_PORT,
     ));
 
-    let mut ribs = [rib_1, rib_2, rib_3, rib_4];
+    let ribs = [rib_1, rib_2, rib_3, rib_4];
 
     let socket = UdpSocket::bind(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
