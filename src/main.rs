@@ -29,7 +29,7 @@ fn main() {
 
     let mut ribs = [rib_1, rib_2, rib_3, rib_4];
 
-    let mut socket = UdpSocket::bind(SocketAddr::new(
+    let socket = UdpSocket::bind(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
         ARTNET_PORT,
     ))
