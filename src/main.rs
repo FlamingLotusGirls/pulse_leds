@@ -36,9 +36,7 @@ fn main() {
     .unwrap();
 
     loop {
-        let i = fps_clock.tick();
-        print!("\rTime since last tick (in secs): {:?}", i / 1000000000.);
-        std::io::stdout().flush().unwrap();
+        let _ns_since_last_tick = fps_clock.tick();
 
         ribs.iter().for_each(|r| {
             r.strips.iter().for_each(|strip| {
