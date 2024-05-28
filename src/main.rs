@@ -1,5 +1,6 @@
 use artnet_protocol::{ArtCommand, Output};
 use fps_clock::*;
+use palette::{Hsv, IntoColor as _, Srgb};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
 
 const ARTNET_PORT: u16 = 6454;
@@ -7,7 +8,7 @@ const ARTNET_PACKET_DATA_LENGTH: usize = 512;
 const NUMBER_OF_PIXELS_IN_ARTNET_PACKET: usize = ARTNET_PACKET_DATA_LENGTH / 3;
 
 fn main() {
-    let mut fps_clock = FpsClock::new(60);
+    let mut fps_clock = FpsClock::new(15);
 
     let rib_1 = Rib::new(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(169, 254, 5, 51)),
@@ -26,7 +27,8 @@ fn main() {
         ARTNET_PORT,
     ));
 
-    let ribs = [rib_1, rib_2, rib_3, rib_4];
+    // let mut ribs = [rib_1];
+    let mut ribs = [rib_1, rib_2, rib_3, rib_4];
 
     let socket = UdpSocket::bind(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
@@ -34,8 +36,12 @@ fn main() {
     ))
     .unwrap();
 
+    let mut breathe_pattern = BreathePattern::default();
+
     loop {
-        let _ns_since_last_tick = fps_clock.tick();
+        let ns_since_last_tick = fps_clock.tick();
+
+        breathe_pattern.tick(ns_since_last_tick, &mut ribs);
 
         ribs.iter().for_each(|rib| {
             rib.strips
@@ -46,6 +52,7 @@ fn main() {
                         .chunks(NUMBER_OF_PIXELS_IN_ARTNET_PACKET)
                         .enumerate()
                         .for_each(|(universe_index, pixels_in_universe)| {
+                            // println!("sending");
                             socket
                                 .send_to(
                                     &ArtCommand::Output(Output {
@@ -93,31 +100,31 @@ impl Rib {
                     Pixel {
                         rgb: [0.5, 0.1, 0.1]
                     };
-                    600
+                    24
                 ], // Bronchi 1
                 vec![
                     Pixel {
                         rgb: [0.5, 0.1, 0.1]
                     };
-                    600
+                    24
                 ], // Bronchi 2
                 vec![
                     Pixel {
                         rgb: [0.5, 0.1, 0.1]
                     };
-                    600
+                    24
                 ], // Bronchi 3
                 vec![
                     Pixel {
                         rgb: [0.5, 0.1, 0.1]
                     };
-                    300
+                    24
                 ], // Bone 1
                 vec![
                     Pixel {
                         rgb: [0.5, 0.1, 0.1]
                     };
-                    300
+                    24
                 ], // Bone 2
             ],
         }
@@ -137,3 +144,85 @@ const GAMMA: [u8; 256] = [
     177, 180, 182, 184, 186, 189, 191, 193, 196, 198, 200, 203, 205, 208, 210, 213, 215, 218, 220,
     223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255,
 ];
+
+const BREATHE_PERIOD: f32 = 3.;
+const BRONCHI_COLORS_HSV: [(f32, f32, f32); 5] = [
+    (30.0, 1.0, 1.0),
+    (60.0, 1.0, 1.0),
+    (30.0, 1.0, 1.0),
+    (-30.0, 1.0, 1.0),
+    (-30.0, 1.0, 1.0),
+];
+const BONE_COLORS_HSV: [(f32, f32, f32); 5] = [
+    (270.0, 1.0, 1.0),
+    (180.0, 1.0, 1.0),
+    (210.0, 1.0, 1.0),
+    (240.0, 1.0, 1.0),
+    (300.0, 1.0, 1.0),
+];
+// A number of seconds which wil result in a full loop of the pattern
+const SECONDS_LOOP: f32 =
+    BRONCHI_COLORS_HSV.len() as f32 * BONE_COLORS_HSV.len() as f32 * BREATHE_PERIOD;
+#[derive(Default)]
+struct BreathePattern {
+    seconds: f32,
+}
+impl BreathePattern {
+    pub fn tick(&mut self, ns_since_last_tick: f32, ribs: &mut [Rib]) {
+        // self.seconds += ns_since_last_tick / 1000000000.;
+        // let val = self.seconds.sin() / 2. + 0.5;
+        // ribs.iter_mut().for_each(|rib| {
+        //     rib.strips
+        //         .iter_mut()
+        //         .enumerate()
+        //         .for_each(|(strip_index, strip)| {
+        //             strip.iter_mut().for_each(|pixel| {
+        //                 pixel.rgb[0] = val;
+        //                 pixel.rgb[1] = val;
+        //                 pixel.rgb[2] = val;
+        //             });
+        //         });
+        // });
+
+        println!("ns {}", ns_since_last_tick);
+        self.seconds += ns_since_last_tick / 1000000000.;
+        self.seconds %= SECONDS_LOOP;
+        let progress = ((self.seconds / BREATHE_PERIOD) + 1.) % 1.;
+        println!("{}", progress);
+
+        ribs.iter_mut().for_each(|rib| {
+            rib.strips
+                .iter_mut()
+                .enumerate()
+                .for_each(|(strip_index, strip)| {
+                    let is_bronchi = strip_index < 3;
+                    let period_index = (self.seconds / BREATHE_PERIOD) as usize;
+                    let next_period_index = period_index + 1;
+                    let (color, next_color) = if is_bronchi {
+                        (
+                            BRONCHI_COLORS_HSV[period_index % BRONCHI_COLORS_HSV.len()],
+                            BRONCHI_COLORS_HSV[next_period_index % BRONCHI_COLORS_HSV.len()],
+                        )
+                    } else {
+                        (
+                            BONE_COLORS_HSV[period_index % BONE_COLORS_HSV.len()],
+                            BONE_COLORS_HSV[next_period_index % BONE_COLORS_HSV.len()],
+                        )
+                    };
+
+                    let color: Srgb = Hsv::new_srgb(
+                        (1. - progress) * color.0 + progress * next_color.0,
+                        (1. - progress) * color.1 + progress * next_color.1,
+                        (1. - progress) * color.2 + progress * next_color.2,
+                    )
+                    .into_color();
+
+                    strip.iter_mut().for_each(|pixel| {
+                        pixel.rgb[0] = color.green;
+                        pixel.rgb[1] = color.red;
+                        pixel.rgb[2] = color.blue;
+                    });
+                });
+        });
+    }
+}

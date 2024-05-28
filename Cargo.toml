@@ -7,3 +7,4 @@ edition = "2021"
 [dependencies]
 fps_clock = "2.0.0"
 artnet_protocol = "0.4.2"
+palette = "0.7.6"
