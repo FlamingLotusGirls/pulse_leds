@@ -3,6 +3,8 @@ use fps_clock::*;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
 
 const ARTNET_PORT: u16 = 6454;
+const ARTNET_PACKET_DATA_LENGTH: usize = 512;
+const NUMBER_OF_PIXELS_IN_ARTNET_PACKET: usize = ARTNET_PACKET_DATA_LENGTH / 3;
 
 fn main() {
     let mut fps_clock = FpsClock::new(60);
@@ -35,31 +37,40 @@ fn main() {
     loop {
         let _ns_since_last_tick = fps_clock.tick();
 
-        ribs.iter().for_each(|r| {
-            r.strips.iter().for_each(|strip| {
-                socket
-                    .send_to(
-                        &ArtCommand::Output(Output {
-                            data: strip
-                                .iter()
-                                .take(170)
-                                .flat_map(|pixel| {
-                                    pixel
-                                        .rgb
-                                        .iter()
-                                        .map(|component| GAMMA[(component * 255.0) as usize])
-                                })
-                                .collect::<Vec<u8>>()
-                                .into(),
-                            port_address: 10.into(),
-                            ..Default::default()
+        ribs.iter().for_each(|rib| {
+            rib.strips
+                .iter()
+                .enumerate()
+                .for_each(|(strip_index, strip)| {
+                    strip
+                        .chunks(NUMBER_OF_PIXELS_IN_ARTNET_PACKET)
+                        .enumerate()
+                        .for_each(|(universe_index, pixels_in_universe)| {
+                            socket
+                                .send_to(
+                                    &ArtCommand::Output(Output {
+                                        data: pixels_in_universe
+                                            .iter()
+                                            .flat_map(|pixel| {
+                                                pixel.rgb.iter().map(|component| {
+                                                    GAMMA[(component * 255.0) as usize]
+                                                })
+                                            })
+                                            .collect::<Vec<u8>>()
+                                            .into(),
+                                        port_address: ((10 + 10 * strip_index + universe_index)
+                                            as u16)
+                                            .try_into()
+                                            .unwrap(),
+                                        ..Default::default()
+                                    })
+                                    .write_to_buffer()
+                                    .unwrap(),
+                                    rib.address,
+                                )
+                                .unwrap();
                         })
-                        .write_to_buffer()
-                        .unwrap(),
-                        r.address,
-                    )
-                    .unwrap();
-            });
+                });
         });
     }
 }
