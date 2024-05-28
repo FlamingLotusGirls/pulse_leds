@@ -27,8 +27,7 @@ fn main() {
         ARTNET_PORT,
     ));
 
-    // let mut ribs = [rib_1];
-    let mut ribs = [rib_1, rib_2, rib_3, rib_4];
+    let ribs = [rib_1, rib_2, rib_3, rib_4];
 
     let socket = UdpSocket::bind(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
@@ -38,10 +37,30 @@ fn main() {
 
     let mut breathe_pattern = BreathePattern::default();
 
+    let mut dummy_rib = Rib::new(SocketAddr::new(
+        IpAddr::V4(Ipv4Addr::new(169, 254, 5, 60)),
+        ARTNET_PORT,
+    ));
+
     loop {
         let ns_since_last_tick = fps_clock.tick();
 
-        breathe_pattern.tick(ns_since_last_tick, &mut ribs);
+        breathe_pattern.tick(ns_since_last_tick, &mut [&mut dummy_rib]);
+
+        let mut art_command_bronchi = ArtCommand::Output(Output {
+            data: dummy_rib.strips[0]
+                .iter()
+                .take(NUMBER_OF_PIXELS_IN_ARTNET_PACKET)
+                .flat_map(|pixel| {
+                    pixel
+                        .rgb
+                        .iter()
+                        .map(|component| GAMMA[(component * 255.0) as usize])
+                })
+                .collect::<Vec<u8>>()
+                .into(),
+            ..Default::default()
+        });
 
         ribs.iter().for_each(|rib| {
             rib.strips
@@ -53,26 +72,15 @@ fn main() {
                         .enumerate()
                         .for_each(|(universe_index, pixels_in_universe)| {
                             // println!("sending");
+                            if let ArtCommand::Output(output) = &mut art_command_bronchi {
+                                output.port_address = ((10 + 10 * strip_index + universe_index)
+                                    as u16)
+                                    .try_into()
+                                    .unwrap();
+                            }
                             socket
                                 .send_to(
-                                    &ArtCommand::Output(Output {
-                                        data: pixels_in_universe
-                                            .iter()
-                                            .flat_map(|pixel| {
-                                                pixel.rgb.iter().map(|component| {
-                                                    GAMMA[(component * 255.0) as usize]
-                                                })
-                                            })
-                                            .collect::<Vec<u8>>()
-                                            .into(),
-                                        port_address: ((10 + 10 * strip_index + universe_index)
-                                            as u16)
-                                            .try_into()
-                                            .unwrap(),
-                                        ..Default::default()
-                                    })
-                                    .write_to_buffer()
-                                    .unwrap(),
+                                    &art_command_bronchi.write_to_buffer().unwrap(),
                                     rib.address,
                                 )
                                 .unwrap();
@@ -168,7 +176,7 @@ struct BreathePattern {
     seconds: f32,
 }
 impl BreathePattern {
-    pub fn tick(&mut self, ns_since_last_tick: f32, ribs: &mut [Rib]) {
+    pub fn tick(&mut self, ns_since_last_tick: f32, ribs: &mut [&mut Rib]) {
         // self.seconds += ns_since_last_tick / 1000000000.;
         // let val = self.seconds.sin() / 2. + 0.5;
         // ribs.iter_mut().for_each(|rib| {
