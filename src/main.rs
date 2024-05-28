@@ -34,7 +34,6 @@ fn main() {
         ARTNET_PORT,
     ))
     .unwrap();
-    socket.set_nonblocking(true).unwrap();
 
     loop {
         let i = fps_clock.tick();
