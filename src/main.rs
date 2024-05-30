@@ -3,13 +3,12 @@ use fps_clock::*;
 use palette::{Hsv, IntoColor as _, Srgb};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
 
+const FPS: f32 = 5.0;
 const ARTNET_PORT: u16 = 6454;
 const ARTNET_PACKET_DATA_LENGTH: usize = 512;
 const NUMBER_OF_PIXELS_IN_ARTNET_PACKET: usize = ARTNET_PACKET_DATA_LENGTH / 3;
 
 fn main() {
-    let mut fps_clock = FpsClock::new(15);
-
     let rib_1 = Rib::new(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(169, 254, 5, 51)),
         ARTNET_PORT,
@@ -30,7 +29,24 @@ fn main() {
     // let mut ribs = [rib_1];
     let mut ribs = [rib_1, rib_2, rib_3, rib_4];
 
-    let socket = UdpSocket::bind(SocketAddr::new(
+    // We will tick
+    let mut fps_clock = FpsClock::new(
+        FPS as u32
+            * ribs
+                .iter()
+                .fold(0usize, |acc_total_number_of_packets, rib| {
+                    acc_total_number_of_packets
+                        + rib
+                            .strips
+                            .iter()
+                            .fold(0usize, |acc_number_of_packets_in_strip, strip| {
+                                acc_number_of_packets_in_strip
+                                    + strip.chunks(NUMBER_OF_PIXELS_IN_ARTNET_PACKET).count()
+                            })
+                }) as u32,
+    );
+
+    let mut socket = UdpSocket::bind(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
         ARTNET_PORT,
     ))
@@ -39,9 +55,7 @@ fn main() {
     let mut breathe_pattern = BreathePattern::default();
 
     loop {
-        let ns_since_last_tick = fps_clock.tick();
-
-        breathe_pattern.tick(ns_since_last_tick, &mut ribs);
+        let mut ns_since_last_tick: f32 = 0.0;
 
         ribs.iter().for_each(|rib| {
             rib.strips
@@ -53,6 +67,7 @@ fn main() {
                         .enumerate()
                         .for_each(|(universe_index, pixels_in_universe)| {
                             // println!("sending");
+                            ns_since_last_tick += fps_clock.tick();
                             socket
                                 .send_to(
                                     &ArtCommand::Output(Output {
@@ -79,6 +94,10 @@ fn main() {
                         })
                 });
         });
+
+        // let seconds_since_last_tick = 1.0 / FPS;
+        let seconds_since_last_tick = ns_since_last_tick / 1000000000.0;
+        breathe_pattern.tick(seconds_since_last_tick, &mut ribs);
     }
 }
 
@@ -168,7 +187,7 @@ struct BreathePattern {
     seconds: f32,
 }
 impl BreathePattern {
-    pub fn tick(&mut self, ns_since_last_tick: f32, ribs: &mut [Rib]) {
+    pub fn tick(&mut self, seconds_since_last_tick: f32, ribs: &mut [Rib]) {
         // self.seconds += ns_since_last_tick / 1000000000.;
         // let val = self.seconds.sin() / 2. + 0.5;
         // ribs.iter_mut().for_each(|rib| {
@@ -184,8 +203,8 @@ impl BreathePattern {
         //         });
         // });
 
-        println!("ns {}", ns_since_last_tick);
-        self.seconds += ns_since_last_tick / 1000000000.;
+        println!("ns {}", seconds_since_last_tick);
+        self.seconds += seconds_since_last_tick;
         self.seconds %= SECONDS_LOOP;
         let progress = ((self.seconds / BREATHE_PERIOD) + 1.) % 1.;
         println!("{}", progress);
