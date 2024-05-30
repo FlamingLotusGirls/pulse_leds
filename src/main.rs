@@ -188,7 +188,6 @@ impl BreathePattern {
         //         });
         // });
 
-        println!("ns {}", ns_since_last_tick);
         self.seconds += ns_since_last_tick / 1000000000.;
         self.seconds %= SECONDS_LOOP;
         let progress = ((self.seconds / BREATHE_PERIOD) + 1.) % 1.;
