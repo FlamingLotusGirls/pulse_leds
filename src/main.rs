@@ -8,7 +8,7 @@ const ARTNET_PACKET_DATA_LENGTH: usize = 512;
 const NUMBER_OF_PIXELS_IN_ARTNET_PACKET: usize = ARTNET_PACKET_DATA_LENGTH / 3;
 
 fn main() {
-    let mut fps_clock = FpsClock::new(15);
+    let mut fps_clock = FpsClock::new(5);
 
     let rib_1 = Rib::new(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(169, 254, 5, 51)),
@@ -145,7 +145,9 @@ const GAMMA: [u8; 256] = [
     223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255,
 ];
 
-const BREATHE_PERIOD: f32 = 3.;
+// First number is hue, from zero to 360
+// Second number is saturation, from zero to 1
+// Third number is value/brightness, from zero to 1
 const BRONCHI_COLORS_HSV: [(f32, f32, f32); 5] = [
     (30.0, 1.0, 1.0),
     (60.0, 1.0, 1.0),
@@ -160,6 +162,8 @@ const BONE_COLORS_HSV: [(f32, f32, f32); 5] = [
     (240.0, 1.0, 1.0),
     (300.0, 1.0, 1.0),
 ];
+// How long it takes to transition from color to color
+const BREATHE_PERIOD: f32 = 10.;
 // A number of seconds which wil result in a full loop of the pattern
 const SECONDS_LOOP: f32 =
     BRONCHI_COLORS_HSV.len() as f32 * BONE_COLORS_HSV.len() as f32 * BREATHE_PERIOD;
